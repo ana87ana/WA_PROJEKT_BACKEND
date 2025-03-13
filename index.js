@@ -9,7 +9,6 @@ app.use(cors());
 
 const db = await connectToDatabase();
 
-
 app.listen(PORT, error => {
   if (error) {
     console.log('Greška prilikom pokretanja servera', error);
