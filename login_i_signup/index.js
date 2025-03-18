@@ -9,21 +9,14 @@ import { hashPassword, checkPassword, generateJWT, verifyJWT, authMiddleware } f
 
 dotenv.config();
 
-const app = express();
-app.use(express.json());
-app.use(cors());
+const router = express.Router();
+router.use(express.json());
+router.use(cors());
 
 const PORT = 3000;
 const JWT_SECRET = process.env.JWT_SECRET;
 
-
-app.get('/objave', authMiddleware, async (req, res) => {
-  let userObjave = objave.filter(objava => objava.autor === req.authorised_user.username); // dohvaćamo podatke iz dekodiranog payloada (req.authorised_user)
-
-  res.json(userObjave);
-});
-
-app.post('/register', async (req, res) => {
+router.post('/register', async (req, res) => {
   const { username, password } = req.body;
 
   try {
@@ -46,7 +39,7 @@ app.post('/register', async (req, res) => {
   }
 });
 
-app.post('/login', async (req, res) => {
+router.post('/login', async (req, res) => {
   const { username, password } = req.body;
 
   try {
@@ -70,6 +63,4 @@ app.post('/login', async (req, res) => {
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`Poslužitelj se nalazi na portu ${PORT}`);
-});
+export default router;

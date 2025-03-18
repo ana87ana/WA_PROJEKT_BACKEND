@@ -66,7 +66,7 @@ const authMiddleware = async (req, res, next) => {
     req.authorised_user = decoded;
     next();
   } catch (error) {
-    res.status(500).send('Greška u provjer autorizacije');
+    res.status(500).send('Greška u provjeri autorizacije');
   }
 };
 
