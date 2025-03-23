@@ -13,11 +13,10 @@ const router = express.Router();
 router.use(express.json());
 router.use(cors());
 
-const PORT = 3000;
 const JWT_SECRET = process.env.JWT_SECRET;
 
 router.post('/register', async (req, res) => {
-  const { username, password } = req.body;
+  const { email, username, password, confirmPassword } = req.body;
 
   try {
     const db = await connectToDatabase();
@@ -28,9 +27,18 @@ router.post('/register', async (req, res) => {
       return res.status(400).send('Username već postoji');
     }
 
+    const postojeciEmail = await usersCollection.findOne({ email });
+    if (postojeciEmail) {
+      return res.status(400).send('Ovaj email je već povezan sa postojećim korisnikom');
+    }
+
+    if (password !== confirmPassword) {
+      return res.status(400).send('Lozinke nisu iste');
+    }
+
     let hashedPassword = await hashPassword(password, 10);
 
-    const newUser = { username, password: hashedPassword };
+    const newUser = { email, username, password: hashedPassword };
     await usersCollection.insertOne(newUser);
 
     res.send('User successfully registered!');
