@@ -30,14 +30,14 @@ router.get('/:id', async (req, res) => {
 
 router.post('/', async (req, res) => {
     try {
-        const { title, genre, difficulty, questions, timeLimit } = req.body;
+        const { title, genre, difficulty, subrooms, timeLimit } = req.body;
         
-        if (!title || !genre || !difficulty || !questions || !timeLimit) {
+        if (!title || !genre || !difficulty || !subrooms || !timeLimit) {
             return res.status(400).json({ error: "Nedostaju ključne vrijednosti" });
         }
 
         const eroom_collection = db.collection('escape_rooms');
-        const newRoom = { title, genre, difficulty, questions, timeLimit, leaderboard: [] };
+        const newRoom = { title, genre, difficulty, subrooms, timeLimit, leaderboard: [] };
 
         const result = await eroom_collection.insertOne(newRoom);
         res.status(201).json({ message: "Stvorena nova soba!", id: result.insertedId });
