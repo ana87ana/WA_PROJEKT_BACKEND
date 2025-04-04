@@ -41,9 +41,9 @@ router.post('/register', async (req, res) => {
     const newUser = { email, username, password: hashedPassword };
     await usersCollection.insertOne(newUser);
 
-    res.send('User successfully registered!');
+    res.send('User uspješno registriran');
   } catch (error) {
-    res.status(500).send('Error registering user.');
+    res.status(500).send('Došlo je do greške tijekom registriranja korisnika');
   }
 });
 
