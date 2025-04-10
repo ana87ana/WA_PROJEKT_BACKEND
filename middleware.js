@@ -1,4 +1,6 @@
 import { connectToDatabase } from './db.js';
+import { verifyJWT } from './login_i_signup/auth.js';
+import jwt from 'jsonwebtoken';
 
 const db = await connectToDatabase();
 
@@ -22,4 +24,20 @@ const getUsers = async (req, res, next) => {
     }
 };
 
-export { getUsers, getEscapeRooms };
+const authMiddleware = (req, res, next) => {
+    const authHeader = req.headers.authorization;
+    const token = authHeader?.split(' ')[1]; 
+  
+    if (!token) {
+      return res.status(401).json({ error: 'Token nije dostavljen' });
+    }
+  
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      req.authorised_user = decoded;
+      next();
+    } catch (error) {
+      return res.status(401).json({ error: 'Nevaljan JWT token!' });
+    }
+  }
+export { getUsers, getEscapeRooms, authMiddleware };

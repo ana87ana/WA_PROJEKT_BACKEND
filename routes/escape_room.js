@@ -1,6 +1,7 @@
 import express from 'express';
 import { connectToDatabase } from '../db.js';
-import { getEscapeRooms } from "../middleware.js"
+import { getEscapeRooms, authMiddleware } from "../middleware.js"
+import jwt from 'jsonwebtoken';
 import { ObjectId } from 'mongodb';
 
 const router = express.Router();
@@ -56,41 +57,82 @@ router.post('/', async (req, res) => {
 });
 
 
-router.post('/:id/complete', async (req, res) => {
-    try {
-        const { userId, username, time } = req.body;
-        const eroom_collection = db.collection('escape_rooms');
+router.post('/:id/complete', authMiddleware, async (req, res) => {
+  try {
+    const userId = req.authorised_user.id; 
+    
+    const { time } = req.body; 
+    const escapeRoomId = new ObjectId(req.params.id);
+    
+    const db = await connectToDatabase();
+    const eroom_collection = db.collection('escape_rooms');
+    const users_collection = db.collection('users');
 
-        const escapeRoom = await eroom_collection.findOne({ _id: new ObjectId(req.params.id) });
-        if (!escapeRoom) return res.status(404).json({ error: "Greška tijekom pronalaženja sobe" });
+    const escapeRoom = await eroom_collection.findOne({ _id: escapeRoomId });
+    if (!escapeRoom) return res.status(404).json({ error: "Soba nije pronađena" });
 
-        const existingEntry = escapeRoom.leaderboard.find(entry => entry.userId.equals(new ObjectId(userId)));
+    const user = await users_collection.findOne({ _id: new ObjectId(userId) });
+    if (!user) return res.status(404).json({ error: "Korisnik nije pronađen" });
 
-        if (!existingEntry) {
-            await eroom_collection.updateOne(
-                { _id: new ObjectId(req.params.id) },
-                { $push: { leaderboard: { userId: new ObjectId(userId), username, time } } }
-            );
+    let escapedRooms = user.escapedRooms || [];
+
+    const existingEntry = escapedRooms.find(r => r.escapeRoomId.toString() === escapeRoomId.toString());
+
+    if (!existingEntry) {
+      await users_collection.updateOne(
+        { _id: new ObjectId(userId) },
+        {
+          $push: {
+            escapedRooms: {
+              escapeRoomId: escapeRoomId,
+              firstTime: time.toString(),
+              fastestTime: time.toString() 
+            }
+          }
         }
+      );
 
-        
-        const users_collection = db.collection('users');
-        await users_collection.updateOne(
-            { _id: new ObjectId(userId), "fastestTimes.escapeRoomId": new ObjectId(req.params.id) },
-            { $min: { "fastestTimes.$.time": time } }, 
-            { upsert: true } 
-        );
+      await eroom_collection.updateOne(
+        { _id: escapeRoomId },
+        {
+          $push: {
+            leaderboard: {
+              userId: new ObjectId(userId),
+              username: user.username,
+              firstTime: time.toString() 
+            }
+          }
+        }
+      );
 
-        res.json({ message: "Pohranjeno vrijeme" });
-    } catch (error) {
-        res.status(500).json({ error: "Došlo je do greške!" });
+      return res.json({ message: "Prvo vrijeme spremljeno", firstTime: time, fastestTime: time });
     }
+
+    const currentFastest = parseInt(existingEntry.fastestTime, 10);
+    const newFastest = Math.min(currentFastest, time); 
+
+    await users_collection.updateOne(
+      { _id: new ObjectId(userId), "escapedRooms.escapeRoomId": escapeRoomId },
+      {
+        $set: {
+          "escapedRooms.$.fastestTime": newFastest.toString() 
+        }
+      }
+    );
+
+    return res.json({ message: "Vrijeme ažurirano", firstTime: existingEntry.firstTime, fastestTime: newFastest });
+
+  } catch (error) {
+    console.error("Greška:", error);
+    res.status(500).json({ error: "Greška tijekom spremanja vremena" });
+  }
 });
+
 
 router.get('/leaderboard/:id', async (req, res) => {
     try {
       const db = await connectToDatabase();
-      const escapeRoom = await db.collection('escape_rooms').findOne({ _id: req.params.id });
+      const escapeRoom = await db.collection('escape_rooms').findOne({ _id: new ObjectId(req.params.id) });
   
       if (!escapeRoom) {
         return res.status(404).json({ message: 'Soba nije pronađena' });

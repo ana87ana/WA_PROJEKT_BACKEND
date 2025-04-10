@@ -49,23 +49,33 @@ router.post('/register', async (req, res) => {
 
 router.post('/login', async (req, res) => {
   const { username, password } = req.body;
-
+  
   try {
     const db = await connectToDatabase();
     const usersCollection = db.collection('users');
-
+    
     const user = await usersCollection.findOne({ username });
     if (!user) {
       return res.status(400).send('Greška prilikom login-a');
     }
-
+    
     let result = await checkPassword(password, user.password);
     if (!result) {
       return res.status(400).send('Greška prilikom login-a');
     }
-
-    let token = await generateJWT({ id: user._id, username: user.username });
-    res.status(200).json({ jwt_token: token });
+    
+    const isAdmin = user.isAdmin === true;
+    
+    let token = await generateJWT({ 
+      id: user._id, 
+      username: user.username,
+      isAdmin: user.isAdmin
+    });
+    
+    res.status(200).json({ 
+      jwt_token: token,
+      isAdmin: isAdmin
+    });
   } catch (error) {
     res.status(500).send('Greška prilikom login-a');
   }
